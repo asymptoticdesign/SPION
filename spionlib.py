@@ -4,6 +4,7 @@ Description: An object-oriented library for computing parameters of superparamag
 """
 
 import scipy
+import numpy
 
 #physical constants
 pi = scipy.pi
@@ -13,7 +14,7 @@ T0 = 298.0 #kelvin
 kbT = 4.114e-21 #in joules
 
 eta_h2o = 0.001
-eta_t = 0.00059
+eta_toluene = 0.00059
 rho_fe = 5.175e6 #g / m^3
 
 class SPION:
@@ -67,7 +68,7 @@ class SPION:
         Compute the Brown Relaxation time constant in seconds.
         """
         if(!eta):
-            raise TypeError('Viscosity (eta) not set.  Either pass viscosity value or set a default using coupleCarrier()')
+            raise Exception('Viscosity (eta) not set.  Either pass viscosity value or set a default using coupleCarrier()')
         
         return (eta * V) / kbT
 
@@ -76,7 +77,7 @@ class SPION:
         Compute the relaxation time (in seconds) for the particle in a given carrier fluid.
         """
         if(!eta):
-            raise TypeError('Viscosity (eta) not set.  Either pass viscosity value or set a default using coupleCarrier()')
+            raise Exception('Viscosity (eta) not set.  Either pass viscosity value or set a default using coupleCarrier()')
         
         neel = self.computeNeel(K,V)
         brown = self.computeBrown(eta,V)
@@ -87,7 +88,7 @@ class SPION:
         Computes the 'relaxation resonance' frequency (in Hz) at which the most magnetic losses occur.
         """
         if(!eta):
-            raise TypeError('Viscosity (eta) not set.  Either pass viscosity value or set a default using coupleCarrier()')
+            raise Exception('Viscosity (eta) not set.  Either pass viscosity value or set a default using coupleCarrier()')
         
         return 1.0 / (2*pi*self.computeRelaxation(eta,V,K))
 
@@ -97,3 +98,26 @@ class SPION:
         """
         
 #Now various other functions
+def make2dVectors(vector1, vector2):
+    """
+    create a meshgrid using the two input vectors for two-parameter simulation.
+    """
+    #check that the vector are correct length, etc.
+    if (len(vector1) != len(vector2)):
+        raise Exception("Both input vectors must be the same length.")
+    
+    output1, output2 = numpy.meshgrid(vector1, vector2)
+    return output1, output2
+
+#Predefined SPIONs
+def Fe_SPION(diameter=10.0e-9):
+    return SPION(diameter, 1.4e4, 0.092)
+
+def Co_SPION(diameter=10.0e-9):
+    return SPION(diameter, 1.8e4, 0.08)
+
+def Mn_SPION(diameter=10.0e-9):
+    return SPION(diameter, 3.3e3, 0.08)
+
+def Ni_SPION(diameter=10.0e-9):
+    return SPION(diameter, 3.3e3, 0.05)
