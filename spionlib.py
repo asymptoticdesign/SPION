@@ -7,8 +7,7 @@ import scipy
 import numpy
 
 #physical constants
-pi = scipy.pi
-u0 = pi*4.0e-7 #H / m
+u0 = scipy.pi*4.0e-7 #H / m
 kb = 1.38e-23 #joules / kelvin
 T0 = 298.0 #kelvin
 kbT = 4.114e-21 #in joules
@@ -22,12 +21,13 @@ class SPION:
     A class that represents a SPION.  The idea of the class is to give the nanoparticle a set of 'default' values, and then every computation can optionally accept a vector argument via scipy.  Any non-vector arguments are taken from the default values.
     """
 
-    def __init__(self, diameter, anisotropy, magnetization):
+    def __init__(self, diameter, anisotropy, magnetization, density=5.175e6):
         """
         Input parameters to initialize a SPION of a particular material.
         diameter: in nanometers
         anisotropy constant: in J / m^3
         specific magnetization (sigma): A m^2 / g
+        density = 5.175e6 g / m^3
         """
         #check if all inputs are floats (and not lists)
         for i in [diameter, anisotropy, magnetization]:
@@ -38,6 +38,7 @@ class SPION:
         self.volume = 4/3 * scipy.pi * (self.diameter/2)**3
         self.K = anisotropy
         self.sigma = magnetization
+        self.density = density
 
     def coupleField(self, fieldFreq, fieldAmp):
         """
@@ -81,7 +82,13 @@ class SPION:
         
         neel = self.computeNeel(K,V)
         brown = self.computeBrown(eta,V)
-        return neel*brown / (neel + brown)    
+        return neel*brown / (neel + brown)
+
+    def computeResonance(self, tau):
+        """
+        Computes the 'relaxation resonance' frequency (in Hz) at which the most magnetic losses occur.
+        """
+        return 1.0 / (2*pi*tau)
 
     def computeResonance(self, K = self.K, V = self.volume, eta = self.eta):
         """
@@ -92,10 +99,27 @@ class SPION:
         
         return 1.0 / (2*pi*self.computeRelaxation(eta,V,K))
 
-    def computeSLP(self, tau, K = self.K, V = self.volume, sigma = self.sigma):
+    def __prefactor__(self,fieldAmplitude, fieldFrequency, sigma):
+        prefactor = u0 * scipy.pi * sigma * fieldAmplitude * fieldFrequency
+        return prefactor
+
+    def __xi__(self,fieldAmplitude, sigma, volume):
+        xi = (u0 * sigma * self.density * fieldAmplitude * volume)/ kbT
+        return xi
+
+    def __quadSuscept__(self, tau, fieldFreq):
+        quadSuscept = (2*scipy.pi*fieldFreq*tau) / (1 + (2*scipy.pi*fieldFreq*tau)**2)
+        return quadSuscept
+
+    def computeSLP(self, tau, K = self.K, V = self.volume, sigma = self.sigma, fieldAmp = self.fieldAmp, fieldFreq = self.fieldFreq):
         """
-        Compute the specific loss power in W / g*s.  'tau' is a relaxation time constant as output by self.computeNeel, self.computeBrown, or self.computeRelaxation.
+        Compute the specific loss power in W / g*s.  'tau' is a relaxation time constant as output by self.computeNeel, self.computeBrown, or self.computeRelaxation.  
         """
+        prefactor = self.__prefactor__(fieldAmp, fieldFreq, sigma)
+        xi = self.__xi__(fieldAmp, sigma, volume)
+        quadSuscept = self.__quadSuscept__(tau,fieldFreq)
+        slp = prefactor * quadSuscept * (scipy.tanh(xi)**-1 - (1/xi))
+        return slp
         
 #Now various other functions
 def make2dVectors(vector1, vector2):
@@ -121,3 +145,9 @@ def Mn_SPION(diameter=10.0e-9):
 
 def Ni_SPION(diameter=10.0e-9):
     return SPION(diameter, 3.3e3, 0.05)
+
+def Mg_SPION(diameter=10.0e-9):
+    return SPION(diameter, 2.0e4, 0.03)
+
+def Zn_SPION(diameter=10.0e-9):
+    return SPION(diameter, 4.6e3, 0.065)
