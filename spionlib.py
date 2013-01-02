@@ -30,9 +30,9 @@ class SPION:
         density = 5.175e6 g / m^3
         """
         #check if all inputs are floats (and not lists)
-        for i in [diameter, anisotropy, magnetization]:
-            if !isinstance.(i, float):
-                raise TypeError('Invalid input.  All initial inputs must be floats.')
+        for i in [diameter, anisotropy, magnetization, density]:
+            if not isinstance(i, float):
+                raise TypeError('Invalid input. All initial parameters must be a floats.')
             
         self.diameter = diameter
         self.volume = 4/3 * scipy.pi * (self.diameter/2)**3
@@ -45,7 +45,7 @@ class SPION:
         Add default field parameters for future computations.  Field frequency should be in Hertz and field amplitude should be in Amps / meter
         """
         for i in [fieldFreq, fieldAmp]:
-            if !isinstance.(i, float):
+            if not isinstance(i, float):
                 raise TypeError('Invalid input.  All field parameters must be floats.')
         self.fieldFreq = fieldFreq
         self.fieldAmp = fieldAmp
@@ -54,32 +54,49 @@ class SPION:
         """
         Add a default carrier fluid.
         """
-        if !isinstance.(eta, float):
+        if not isinstance(eta, float):
             raise TypeError('Invalid input.  Viscosity (eta) must be a float.')
         self.eta = eta
 
-    def computeNeel(self, K = self.K, V = self.volume):
+    def computeNeel(self, K = None, V = None):
         """
         Compute the Neel Relaxation time constant in seconds.
         """
+        if not K:
+            K = self.K
+        if not V:
+            V = self.volume
         return 1.0e-9 * scipy.exp(K*V/(kbT))
 
-    def computeBrown(self, eta = self.eta, V = self.volume):
+    def computeBrown(self, eta = None, V = None):
         """
         Compute the Brown Relaxation time constant in seconds.
         """
-        if(!eta):
-            raise Exception('Viscosity (eta) not set.  Either pass viscosity value or set a default using coupleCarrier()')
-        
+        if not eta:
+            if not self.eta:
+                raise Exception('Viscosity (eta) not set.  Either pass viscosity value or set a default using coupleCarrier()')    
+            else:
+                eta = self.eta
+        if not V:
+            V = self.volume
+
         return (eta * V) / kbT
 
-    def computeRelaxation(self, eta = self.eta, V = self.volume, K = self.K):
+    def computeRelaxation(self, eta = None, K = None, V = None):
         """
         Compute the relaxation time (in seconds) for the particle in a given carrier fluid.
         """
-        if(!eta):
-            raise Exception('Viscosity (eta) not set.  Either pass viscosity value or set a default using coupleCarrier()')
-        
+        if not eta:
+            if not self.eta:
+                raise Exception('Viscosity (eta) not set.  Either pass viscosity value or set a default using coupleCarrier()')    
+            else:
+                eta = self.eta
+                
+        if not V:
+            V = self.volume
+        if not K:
+            K = self.K
+            
         neel = self.computeNeel(K,V)
         brown = self.computeBrown(eta,V)
         return neel*brown / (neel + brown)
@@ -88,16 +105,24 @@ class SPION:
         """
         Computes the 'relaxation resonance' frequency (in Hz) at which the most magnetic losses occur.
         """
-        return 1.0 / (2*pi*tau)
+        return 1.0 / (2*scipy.pi*tau)
 
-    def computeResonance(self, K = self.K, V = self.volume, eta = self.eta):
+    def computeResonance(self, eta = None, K = None, V = None):
         """
         Computes the 'relaxation resonance' frequency (in Hz) at which the most magnetic losses occur.
         """
-        if(!eta):
-            raise Exception('Viscosity (eta) not set.  Either pass viscosity value or set a default using coupleCarrier()')
-        
-        return 1.0 / (2*pi*self.computeRelaxation(eta,V,K))
+        if not eta:
+            if not self.eta:
+                raise Exception('Viscosity (eta) not set.  Either pass viscosity value or set a default using coupleCarrier()')    
+            else:
+                eta = self.eta
+                
+        if not V:
+            V = self.volume
+        if not K:
+            K = self.K
+
+        return 1.0 / (2*scipy.pi*self.computeRelaxation(eta,V,K))
 
     def __prefactor__(self,fieldAmplitude, fieldFrequency, sigma):
         prefactor = u0 * scipy.pi * sigma * fieldAmplitude * fieldFrequency
@@ -111,10 +136,21 @@ class SPION:
         quadSuscept = (2*scipy.pi*fieldFreq*tau) / (1 + (2*scipy.pi*fieldFreq*tau)**2)
         return quadSuscept
 
-    def computeSLP(self, tau, K = self.K, V = self.volume, sigma = self.sigma, fieldAmp = self.fieldAmp, fieldFreq = self.fieldFreq):
+    def computeSLP(self, tau, K = None, V = None, sigma = None, fieldAmp = None, fieldFreq = None):
         """
         Compute the specific loss power in W / g*s.  'tau' is a relaxation time constant as output by self.computeNeel, self.computeBrown, or self.computeRelaxation.  
         """
+        if not K:
+            K = self.K
+        if not V:
+            V = self.volume
+        if not sigma:
+            sigma = self.sigma
+        if not fieldAmp:
+            fieldAmp = self.fieldAmp
+        if not fieldFreq:
+            fieldFreq = self.fieldFreq
+            
         prefactor = self.__prefactor__(fieldAmp, fieldFreq, sigma)
         xi = self.__xi__(fieldAmp, sigma, volume)
         quadSuscept = self.__quadSuscept__(tau,fieldFreq)
