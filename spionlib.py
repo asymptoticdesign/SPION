@@ -18,7 +18,7 @@ rho_fe = 5.175e6 #g / m^3
 
 class SPION:
     """
-    A class that represents a SPION.  The idea of the class is to give the nanoparticle a set of 'default' values, and then every computation can optionally accept a vector argument via scipy.  Any non-vector arguments are taken from the default values.
+    A class that represents a (theoretical) SPION.  The idea of the class is to give the nanoparticle a set of 'default' values, and then every computation can optionally accept a vector argument via scipy.  Any non-vector arguments are taken from the default values.
     """
 
     def __init__(self, diameter, anisotropy, magnetization, density=5.175e6):
@@ -156,6 +156,28 @@ class SPION:
         quadSuscept = self.__quadSuscept__(tau,fieldFreq)
         slp = prefactor * quadSuscept * (scipy.tanh(xi)**-1 - (1/xi))
         return slp
+
+    def __langevin__(self,langevinArgument):
+        return 1.0/scipy.tanh(langevinArgument) - 1.0/langevinArgument
+
+    def computeHysteresis(self,spionMass, maxField, numPoints = 1000):
+        """
+        spionMass is in grams
+        maxField is in amps per meter
+        """
+        H = scipy.linspace(-maxField,maxField,numPoints)
+        M = self.sigma*self.__langevin__(u0*self.sigma*spionMass*H / kbT)
+        return H,M
+
+    def computeSusceptability(self):
+        None
+
+class HysteresisLoop():
+    def __init__(field, magnetization, spion):
+        self.field = field
+        self.magnetization = magnetization
+        self.composition = spion
+        
         
 #Now various other functions
 def make2dVectors(vector1, vector2):
@@ -170,8 +192,11 @@ def make2dVectors(vector1, vector2):
     return output1, output2
 
 #Predefined SPIONs
-def Fe_SPION(diameter=10.0e-9):
+def Fe3O4_SPION(diameter=10.0e-9):
     return SPION(diameter, 1.4e4, 0.092)
+
+def Fe2O3_SPION(diameter=10.0e-9):
+    return SPION(diameter, 4.6e3, 0.080)
 
 def Co_SPION(diameter=10.0e-9):
     return SPION(diameter, 1.8e4, 0.08)
